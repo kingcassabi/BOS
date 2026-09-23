@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12324a"><link rel="manifest" href="manifest.webmanifest">
+<title>BOS Expense Tracker v6 Cloud</title>
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:#f3f6f8;color:#18232d}
+header{background:#12324a;color:#fff;padding:16px 20px;display:flex;gap:14px;align-items:center} header b{font-size:25px} header span{opacity:.9}
+nav{display:flex;gap:8px;padding:12px;overflow:auto;background:white;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:2}
+nav button,.btn{border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer} nav button{background:#e7edf1} nav button.active,.primary{background:#12324a;color:white}
+main{max-width:1050px;margin:auto;padding:16px} .page{display:none} .page.active{display:block}
+.card{background:white;border:1px solid #dce3e8;border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px #0001}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px} .full{grid-column:1/-1}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:5px} input,select,textarea{width:100%;padding:12px;border:1px solid #bac6ce;border-radius:8px;background:white;font-size:16px;color:#17232d}
+textarea{min-height:90px} .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap} .secondary{background:#e7edf1;color:#17232d}
+table{width:100%;border-collapse:collapse;font-size:14px} th,td{padding:10px;border-bottom:1px solid #e4e8eb;text-align:left;vertical-align:top} th{background:#f6f8f9}
+.tablewrap{overflow:auto} .muted{color:#65737e;font-size:13px} .status{padding:10px;border-radius:8px;margin-top:12px;display:none} .ok{display:block;background:#e7f5ea;color:#165a26}
+.setting{display:grid;grid-template-columns:1fr auto;gap:8px;margin:7px 0} .danger{background:#8b2635;color:white}.summarycards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.metric{background:#f6f8f9;border:1px solid #dce3e8;border-radius:10px;padding:16px}.metric b{display:block;font-size:24px;margin-top:5px}.catrow{display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 0;border-bottom:1px solid #e4e8eb}.catrow:last-child{border-bottom:0}
+@media(max-width:650px){.summarycards{grid-template-columns:1fr}.grid{grid-template-columns:1fr} .full{grid-column:auto} main{padding:10px} .card{padding:14px} table{min-width:760px}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
+<body><div id="loginScreen" style="position:fixed;inset:0;background:#f3f6f8;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px"><div class="card" style="width:min(430px,100%);margin:0"><h2>BOS Login</h2><label>Email</label><input id="loginEmail" type="email"><div style="height:10px"></div><label>Password</label><input id="loginPassword" type="password"><div class="actions"><button class="btn primary" id="loginBtn" type="button">SIGN IN</button></div><div id="loginMsg" class="status"></div></div></div>
+<header><b>BOS</b><span>Expense Tracker v6 Cloud</span><button id="logoutBtn" class="btn secondary" style="margin-left:auto;padding:7px 10px">Sign Out</button></header>
+<nav>
+<button data-page="entry" class="active">Add Expense</button><button data-page="summary">Summary</button><button data-page="ledger">Expense Ledger</button><button data-page="settings">Settings</button>
+</nav>
+<main>
+<section id="entry" class="page active"><div class="card"><h2>Add Expense</h2>
+<form id="expenseForm"><div class="grid">
+<div><label>Date</label><input id="date" type="date" required></div>
+<div><label>Amount</label><input id="amount" type="number" step="0.01" min="0.01" inputmode="decimal" required></div>
+<div><label>Currency</label><select id="currency"><option value="USD" selected>USD</option>
+<option value="CAD">CAD</option>
+<option value="EUR">EUR</option>
+<option value="XCD">XCD</option>
+<option value="Other">Other</option></select></div>
+<div><label>Paid To / Vendor</label><input id="vendor"></div>
+<div class="full"><label>Description</label><input id="description"></div>
+<div><label>Allocation Type</label><select id="allocation"><option value="One Week Charter">One Week Charter</option>
+<option value="Two Week Charter">Two Week Charter</option>
+<option value="Custom Charter">Custom Charter</option>
+<option value="Day Charter">Day Charter</option>
+<option value="Boat / General" selected>Boat / General</option>
+<option value="Maintenance">Maintenance</option>
+<option value="Upgrade">Upgrade</option>
+<option value="Inventory">Inventory</option>
+<option value="Administration">Administration</option></select></div>
+<div><label>Category</label><select id="category"><option value="Maintenance & Repairs">Maintenance & Repairs</option>
+<option value="Inventory & Spares">Inventory & Spares</option>
+<option value="Fuel & LPG">Fuel & LPG</option>
+<option value="Moorage & Dockage">Moorage & Dockage</option>
+<option value="Galley Provisions">Galley Provisions</option>
+<option value="Beverage Provisions">Beverage Provisions</option>
+<option value="Onshore Food Expenses">Onshore Food Expenses</option>
+<option value="Linens">Linens</option>
+<option value="Laundry">Laundry</option>
+<option value="Crew">Crew</option>
+<option value="Contractors & Casual Labour">Contractors & Casual Labour</option>
+<option value="Licences & Fees">Licences & Fees</option>
+<option value="Guardianship / Boat Watch">Guardianship / Boat Watch</option>
+<option value="Divers / Underwater Work">Divers / Underwater Work</option>
+<option value="Travel & Transportation">Travel & Transportation</option>
+<option value="Administration">Administration</option>
+<option value="Other">Other</option></select></div>
+<div><label>Payment Method</label><select id="payment"><option value="Cash" selected>Cash</option>
+<option value="Credit Card">Credit Card</option>
+<option value="Debit Card">Debit Card</option>
+<option value="Wire / Bank Transfer">Wire / Bank Transfer</option>
+<option value="PayPal">PayPal</option>
+<option value="Other">Other</option></select></div>
+<div><label>Charter / Trip</label><input id="charter" placeholder="Optional"></div>
+<div><label>Receipt / Reference</label><input id="reference"></div>
+<div><label>Receipt Photo / File</label><input id="receipt" type="file" accept="image/*,.pdf" capture="environment"></div>
+<div class="full"><label>Notes</label><textarea id="notes"></textarea></div>
+</div><div class="actions"><button class="btn primary" type="submit">SAVE EXPENSE</button><button class="btn secondary" id="clearBtn" type="button">Clear</button></div>
+<div id="saved" class="status"></div></form></div></section>
+
+
+<section id="summary" class="page"><div class="card"><h2>Expense Summary</h2>
+<div class="grid">
+<div><label>Summary Period</label><select id="summaryPeriod"><option value="month">Current Month</option><option value="fy">Current Fiscal Year</option><option value="season">Current Season</option><option value="all">All Expenses</option></select></div>
+<div><label>Category</label><select id="summaryCategory"><option value="">All Categories</option></select></div>
+</div>
+<div id="summaryCards" class="summarycards"></div>
+</div>
+<div class="card"><h3>Spending by Category</h3><div id="categorySummary"></div></div>
+<div class="card"><h3>Recent Expenses</h3><div class="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Vendor</th><th>Description</th><th>Category</th></tr></thead><tbody id="recentRows"></tbody></table></div></div>
+</section>
+
+<section id="ledger" class="page"><div class="card"><h2>Expense Ledger</h2>
+<div class="grid"><div><label>Search</label><input id="search" placeholder="Vendor, description, category..."></div><div><label>Category Filter</label><select id="filterCategory"><option value="">All Categories</option><option value="Maintenance & Repairs">Maintenance & Repairs</option>
+<option value="Inventory & Spares">Inventory & Spares</option>
+<option value="Fuel & LPG">Fuel & LPG</option>
+<option value="Moorage & Dockage">Moorage & Dockage</option>
+<option value="Galley Provisions">Galley Provisions</option>
+<option value="Beverage Provisions">Beverage Provisions</option>
+<option value="Onshore Food Expenses">Onshore Food Expenses</option>
+<option value="Linens">Linens</option>
+<option value="Laundry">Laundry</option>
+<option value="Crew">Crew</option>
+<option value="Contractors & Casual Labour">Contractors & Casual Labour</option>
+<option value="Licences & Fees">Licences & Fees</option>
+<option value="Guardianship / Boat Watch">Guardianship / Boat Watch</option>
+<option value="Divers / Underwater Work">Divers / Underwater Work</option>
+<option value="Travel & Transportation">Travel & Transportation</option>
+<option value="Administration">Administration</option>
+<option value="Other">Other</option></select></div></div>
+<div class="actions"><button class="btn secondary" id="exportCsv">Export CSV</button><button class="btn secondary" id="backup">Backup JSON</button><label class="btn secondary" style="display:inline-block">Restore JSON<input id="restore" type="file" accept=".json" style="display:none"></label></div>
+<div class="tablewrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Vendor</th><th>Description</th><th>Allocation</th><th>Category</th><th>Payment</th><th>FY</th><th>Season</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p id="empty" class="muted">No expenses saved yet.</p></div></section>
+
+<section id="settings" class="page"><div class="card"><h2>Settings</h2><p class="muted">Manage expense dropdown choices. Changes are stored in BOS cloud and apply to all users.</p>
+<div id="settingsLists"></div></div></section>
+</main>
+<script>
+(function(){
+"use strict";
+var sb=window.supabase.createClient("https://svfiswaaqdlfmsopdjuu.supabase.co","sb_publishable_6iNA3yIwLkw4iadWycUCuA_QZB4nJ0C"), cloudUser=null, cloudRole="crew";
+
+var defaults={currency:["USD", "CAD", "EUR", "XCD", "Other"],allocation:["One Week Charter", "Two Week Charter", "Custom Charter", "Day Charter", "Boat / General", "Maintenance", "Upgrade", "Inventory", "Administration"],category:["Maintenance & Repairs", "Inventory & Spares", "Fuel & LPG", "Moorage & Dockage", "Galley Provisions", "Beverage Provisions", "Onshore Food Expenses", "Linens", "Laundry", "Crew", "Contractors & Casual Labour", "Licences & Fees", "Guardianship / Boat Watch", "Divers / Underwater Work", "Travel & Transportation", "Administration", "Other"],payment:["Cash", "Credit Card", "Debit Card", "Wire / Bank Transfer", "PayPal", "Other"]};
+var lists=clone(defaults), expenses=[], editing=null;
+function $(id){return document.getElementById(id)}
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function load(k,f){return clone(f)}
+function persist(){return true}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function fy(d){var x=new Date(d+"T12:00:00"),y=x.getFullYear();return x.getMonth()+1>=4?"FY "+y+"-"+String(y+1).slice(-2):"FY "+(y-1)+"-"+String(y).slice(-2)}
+function season(d){var x=new Date(d+"T12:00:00"),y=x.getFullYear();return x.getMonth()+1>=8?y+"-"+String(y+1).slice(-2):(y-1)+"-"+String(y).slice(-2)}
+function today(){var d=new Date(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return d.getFullYear()+"-"+m+"-"+day}
+function fill(id,arr,keep){var s=$(id),old=keep!=null?keep:s.value;s.innerHTML="";arr.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;if(v===old)o.selected=true;s.appendChild(o)})}
+function refreshSelects(){fill("currency",lists.currency,$("currency").value||"USD");fill("allocation",lists.allocation,$("allocation").value||"Boat / General");fill("category",lists.category,$("category").value);fill("payment",lists.payment,$("payment").value||"Cash");$("filterCategory").innerHTML='<option value="">All Categories</option>';
+$("summaryCategory").innerHTML='<option value="">All Categories</option>';
+lists.category.forEach(function(v){
+ var o=document.createElement("option");o.value=v;o.textContent=v;$("filterCategory").appendChild(o);
+ var s=document.createElement("option");s.value=v;s.textContent=v;$("summaryCategory").appendChild(s)
+})}
+function clearForm(){editing=null;$("expenseForm").reset();$("date").value=today();refreshSelects();$("currency").value="USD";$("allocation").value="Boat / General";$("payment").value="Cash";$("saved").className="status";$("saved").textContent=""}
+document.querySelectorAll("nav button").forEach(function(b){b.onclick=function(){document.querySelectorAll("nav button").forEach(function(x){x.classList.remove("active")});document.querySelectorAll(".page").forEach(function(x){x.classList.remove("active")});b.classList.add("active");$(b.getAttribute("data-page")).classList.add("active");if(b.getAttribute("data-page")==="summary")renderSummary();if(b.getAttribute("data-page")==="ledger")renderLedger();if(b.getAttribute("data-page")==="settings")renderSettings()}});
+$("expenseForm").onsubmit=async function(e){e.preventDefault();var d=$("date").value,a=parseFloat($("amount").value);if(!d||!(a>0))return;
+var receiptPath="",file=$("receipt").files[0];
+if(file){var safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"),path=cloudUser.id+"/"+Date.now()+"_"+safe;var up=await sb.storage.from("bos-receipts").upload(path,file);if(up.error){alert("Receipt upload failed: "+up.error.message);return}receiptPath=path}
+var row={expense_date:d,amount:a,currency:$("currency").value,vendor:$("vendor").value.trim()||null,description:$("description").value.trim()||null,allocation_type:$("allocation").value,category:$("category").value,payment_method:$("payment").value,charter_trip:$("charter").value.trim()||null,receipt_reference:$("reference").value.trim()||null,notes:$("notes").value.trim()||null,receipt_path:receiptPath||null,fiscal_year:fy(d),season:season(d),user_id:cloudUser.id};
+var res=editing?await sb.from("expenses").update(row).eq("id",editing):await sb.from("expenses").insert(row);
+if(res.error){alert("Expense was not saved: "+res.error.message);return}await cloudLoad();clearForm();$("saved").textContent="Expense saved to BOS cloud.";$("saved").className="status ok"};
+$("clearBtn").onclick=clearForm;
+function renderLedger(){var q=$("search").value.toLowerCase(),cat=$("filterCategory").value,body=$("rows");body.innerHTML="";var shown=expenses.filter(function(x){var blob=(x.vendor+" "+x.description+" "+x.category+" "+x.allocation+" "+x.charter).toLowerCase();return (!q||blob.indexOf(q)>=0)&&(!cat||x.category===cat)});$("empty").style.display=shown.length?"none":"block";shown.forEach(function(x){var tr=document.createElement("tr");tr.innerHTML="<td>"+esc(x.date)+"</td><td>"+esc(x.currency)+" "+Number(x.amount).toFixed(2)+"</td><td>"+esc(x.vendor)+"</td><td>"+esc(x.description)+"</td><td>"+esc(x.allocation)+"</td><td>"+esc(x.category)+"</td><td>"+esc(x.payment)+"</td><td>"+esc(x.fy)+"</td><td>"+esc(x.season)+"</td><td><button data-edit='"+x.id+"'>Edit</button> <button data-del='"+x.id+"'>Delete</button></td>";body.appendChild(tr)});body.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){editExpense(b.getAttribute("data-edit"))}});body.querySelectorAll("[data-del]").forEach(function(b){b.onclick=function(){if(confirm("Delete this expense?")){(async function(){var r=await sb.from("expenses").delete().eq("id",b.getAttribute("data-del"));if(r.error)alert(r.error.message);else await cloudLoad()})()}}})}
+$("search").oninput=renderLedger;$("filterCategory").onchange=renderLedger;
+function editExpense(id){var x=expenses.find(function(r){return r.id===id});if(!x)return;editing=id;["date","vendor","description","charter","reference","notes"].forEach(function(k){$(k).value=x[k]||""});$("amount").value=x.amount;refreshSelects();$("currency").value=x.currency;$("allocation").value=x.allocation;$("category").value=x.category;$("payment").value=x.payment;document.querySelector('[data-page="entry"]').click();window.scrollTo(0,0)}
+function download(name,type,text){var a=document.createElement("a"),blob=new Blob([text],{type:type});a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},500)}
+$("exportCsv").onclick=function(){var heads=["Date","Amount","Currency","Vendor","Description","Allocation","Category","Payment Method","Charter / Trip","Receipt / Reference","Notes","Fiscal Year","Season"],keys=["date","amount","currency","vendor","description","allocation","category","payment","charter","reference","notes","fy","season"];function q(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"'}var lines=[heads.map(q).join(",")].concat(expenses.map(function(x){return keys.map(function(k){return q(x[k])}).join(",")}));download("BOS_Expenses.csv","text/csv",lines.join("\n"))};
+$("backup").onclick=function(){download("BOS_Expenses_Backup.json","application/json",JSON.stringify({expenses:expenses,lists:lists},null,2))};
+$("restore").onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var o=JSON.parse(r.result);expenses=Array.isArray(o.expenses)?o.expenses:[];lists=o.lists||clone(defaults);persist();refreshSelects();renderLedger();renderSettings();alert("Backup restored.")}catch(err){alert("That backup file could not be read.")}};r.readAsText(f)};
+
+function currentFY(){
+ var d=new Date(),y=d.getFullYear(),m=d.getMonth()+1;
+ return m>=4?"FY "+y+"-"+String(y+1).slice(-2):"FY "+(y-1)+"-"+String(y).slice(-2)
+}
+function currentSeason(){
+ var d=new Date(),y=d.getFullYear(),m=d.getMonth()+1;
+ return m>=8?y+"-"+String(y+1).slice(-2):(y-1)+"-"+String(y).slice(-2)
+}
+function moneyByCurrency(arr){
+ var t={};arr.forEach(function(x){t[x.currency]=(t[x.currency]||0)+Number(x.amount||0)});
+ var ks=Object.keys(t);if(!ks.length)return "$0.00";
+ return ks.map(function(k){return k+" "+t[k].toFixed(2)}).join(" / ")
+}
+function renderSummary(){
+ var p=$("summaryPeriod").value,cat=$("summaryCategory").value,now=new Date(),ym=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+ var arr=expenses.filter(function(x){
+  var ok=p==="all"||(p==="month"&&String(x.date).slice(0,7)===ym)||(p==="fy"&&x.fy===currentFY())||(p==="season"&&x.season===currentSeason());
+  return ok&&(!cat||x.category===cat)
+ });
+ $("summaryCards").innerHTML='<div class="metric"><span>Total Expenses</span><b>'+esc(moneyByCurrency(arr))+'</b></div><div class="metric"><span>Transactions</span><b>'+arr.length+'</b></div><div class="metric"><span>Period</span><b style="font-size:17px">'+esc(p==="month"?"Current Month":p==="fy"?currentFY():p==="season"?currentSeason():"All Expenses")+'</b></div>';
+ var by={};arr.forEach(function(x){var key=x.category+"|||"+x.currency;by[key]=(by[key]||0)+Number(x.amount||0)});
+ var keys=Object.keys(by).sort(function(a,b){return by[b]-by[a]});
+ $("categorySummary").innerHTML=keys.length?keys.map(function(k){var z=k.split("|||");return '<div class="catrow"><span>'+esc(z[0])+'</span><b>'+esc(z[1])+' '+by[k].toFixed(2)+'</b></div>'}).join(""):'<p class="muted">No expenses in this period.</p>';
+ var recent=arr.slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))}).slice(0,10);
+ $("recentRows").innerHTML=recent.map(function(x){return "<tr><td>"+esc(x.date)+"</td><td>"+esc(x.currency)+" "+Number(x.amount).toFixed(2)+"</td><td>"+esc(x.vendor)+"</td><td>"+esc(x.description)+"</td><td>"+esc(x.category)+"</td></tr>"}).join("");
+}
+$("summaryPeriod").onchange=renderSummary;$("summaryCategory").onchange=renderSummary;
+function listTypeFor(k){return {currency:"Currency",allocation:"Allocation Type",category:"Category",payment:"Payment Method"}[k]}
+async function loadRole(){
+ var r=await sb.from("bos_users").select("role,display_name,active").eq("user_id",cloudUser.id).maybeSingle();
+ if(!r.error&&r.data&&r.data.active!==false) cloudRole=r.data.role||"crew";
+}
+async function seedListsIfNeeded(){
+ var r=await sb.from("bos_lists").select("id,list_type,value,sort_order,active").eq("active",true).order("sort_order",{ascending:true});
+ if(r.error){console.warn("BOS lists unavailable:",r.error.message);return}
+ if((r.data||[]).length===0 && cloudRole==="administrator"){
+   var rows=[];
+   [["currency","Currency"],["allocation","Allocation Type"],["category","Category"],["payment","Payment Method"]].forEach(function(pair){
+     defaults[pair[0]].forEach(function(v,i){rows.push({list_type:pair[1],value:v,sort_order:i+1,active:true,user_id:cloudUser.id})})
+   });
+   var ins=await sb.from("bos_lists").insert(rows);
+   if(ins.error){alert("Could not initialise BOS lists: "+ins.error.message);return}
+   r=await sb.from("bos_lists").select("id,list_type,value,sort_order,active").eq("active",true).order("sort_order",{ascending:true});
+ }
+ var next={currency:[],allocation:[],category:[],payment:[]};
+ (r.data||[]).forEach(function(x){
+   var k=({"Currency":"currency","Allocation Type":"allocation","Category":"category","Payment Method":"payment"})[x.list_type];
+   if(k) next[k].push(x.value)
+ });
+ Object.keys(next).forEach(function(k){if(next[k].length)lists[k]=next[k]});
+ refreshSelects();
+}
+async function addListItem(k,title){
+ if(cloudRole!=="administrator"){alert("Only an Administrator can change BOS lists.");return}
+ var v=prompt("New "+title+":");
+ if(!v)return;
+ v=v.trim();if(!v)return;
+ if(lists[k].some(function(x){return x.toLowerCase()===v.toLowerCase()})){alert(v+" already exists.");return}
+ var r=await sb.from("bos_lists").select("sort_order").eq("list_type",title).order("sort_order",{ascending:false}).limit(1);
+ var n=(r.data&&r.data.length?Number(r.data[0].sort_order||0):0)+1;
+ var ins=await sb.from("bos_lists").insert({list_type:title,value:v,sort_order:n,active:true,user_id:cloudUser.id});
+ if(ins.error){alert("Could not add "+title+": "+ins.error.message);return}
+ await seedListsIfNeeded();renderSettings();renderSummary();renderLedger();
+}
+async function removeListItem(k,title,v){
+ if(cloudRole!=="administrator"){alert("Only an Administrator can change BOS lists.");return}
+ if(!confirm('Remove "'+v+'" from '+title+' choices? Existing expenses will not be changed.'))return;
+ var r=await sb.from("bos_lists").update({active:false}).eq("list_type",title).eq("value",v);
+ if(r.error){alert("Could not remove "+title+": "+r.error.message);return}
+ lists[k]=lists[k].filter(function(x){return x!==v});
+ refreshSelects();renderSettings();renderSummary();renderLedger();
+}
+function renderSettings(){
+ var box=$("settingsLists");box.innerHTML="";
+ var admin=cloudRole==="administrator";
+ var note=document.createElement("p");note.className="muted";note.textContent=admin?"Changes are saved to BOS cloud and apply to all users.":"Expense lists are managed by the BOS Administrator.";box.appendChild(note);
+ [["currency","Currency"],["allocation","Allocation Type"],["category","Category"],["payment","Payment Method"]].forEach(function(pair){
+  var k=pair[0],title=pair[1],card=document.createElement("div");card.className="card";
+  var h=document.createElement("h3");h.textContent=title;card.appendChild(h);
+  lists[k].forEach(function(v){
+   var row=document.createElement("div");row.className="setting";
+   var inp=document.createElement("input");inp.value=v;inp.disabled=true;
+   var del=document.createElement("button");del.className="btn danger";del.textContent="Remove";del.style.display=admin?"block":"none";
+   del.onclick=function(){removeListItem(k,title,v)};
+   row.appendChild(inp);row.appendChild(del);card.appendChild(row)
+  });
+  if(admin){var add=document.createElement("button");add.className="btn secondary";add.textContent="+ Add "+title;add.onclick=function(){addListItem(k,title)};card.appendChild(add)}
+  box.appendChild(card)
+ })
+}
+async function cloudLoad(){
+ var r=await sb.from("expenses").select("*").order("expense_date",{ascending:false});
+ if(r.error){alert("Could not load BOS expenses: "+r.error.message);return}
+ expenses=(r.data||[]).map(function(x){return {id:x.id,date:x.expense_date,amount:Number(x.amount),currency:x.currency,vendor:x.vendor||"",description:x.description||"",allocation:x.allocation_type,category:x.category,payment:x.payment_method,charter:x.charter_trip||"",reference:x.receipt_reference||"",notes:x.notes||"",receipt:x.receipt_path||"",fy:x.fiscal_year||fy(x.expense_date),season:x.season||season(x.expense_date)}});
+ renderLedger();renderSummary()
+}
+async function bosLogin(){var r=await sb.auth.signInWithPassword({email:$("loginEmail").value.trim(),password:$("loginPassword").value});if(r.error){$("loginMsg").textContent=r.error.message;$("loginMsg").style.display="block";return}cloudUser=r.data.user;$("loginScreen").style.display="none";await loadRole();await seedListsIfNeeded();await cloudLoad();renderSettings()}
+$("loginBtn").onclick=bosLogin;$("loginPassword").onkeydown=function(e){if(e.key==="Enter")bosLogin()};
+$("logoutBtn").onclick=async function(){await sb.auth.signOut();location.reload()};
+(async function(){var r=await sb.auth.getSession();if(r.data.session){cloudUser=r.data.session.user;$("loginScreen").style.display="none";await loadRole();await seedListsIfNeeded();await cloudLoad();renderSettings()}else{$("loginScreen").style.display="flex"}})();
+refreshSelects();clearForm();renderLedger();renderSummary();renderSettings();
+if("serviceWorker" in navigator && location.protocol.indexOf("http")===0) navigator.serviceWorker.register("sw.js").catch(function(){});
+})();
+</script></body></html>
